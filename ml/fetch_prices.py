@@ -10,7 +10,7 @@ Responses are cached under cache/prices/, so a re-run only refetches cards older
 than --max-age hours (resumable after an interruption).
 
 Output (default android/app/src/main/assets/prices.json):
-  {"updated": ..., "cards": {"<our id>": {"tcgdex": "...",   # or "tcgplayer": [groupId, productId]
+  {"updated": ..., "cards": {"<our id>": {"tcgdex": "...",   # and/or "tcgplayer": [groupId, productId]
       "usd": {"normal": 0.27, "reverse-holofoil": 0.43, ...},   # TCGplayer market (else mid)
       "eur": {"trend": 0.08, "avg30": 0.12, "trend-holo": 0.44, ...}}}}   # Cardmarket
 """
@@ -28,7 +28,7 @@ from config import CACHE_ROOT, PROJECT_ROOT, all_sets, cards_by_set
 API = "https://api.tcgdex.net/v2/en"
 PRICE_CACHE = CACHE_ROOT / "prices"
 DEFAULT_OUT = PROJECT_ROOT / "android" / "app" / "src" / "main" / "assets" / "prices.json"
-HEADERS = {"User-Agent": "HoloScan price snapshot (personal project)"}
+HEADERS = {"User-Agent": "PullScan price snapshot (personal project)"}
 
 # Our set id -> TCGdex set id, where the names differ.
 SET_OVERRIDES = {
@@ -110,6 +110,11 @@ def compact(pricing):
                 usd[variant] = round(v, 2)
     if usd:
         out["usd"] = usd
+    # TCGplayer product id, for the app's link to the product page. groupId 0: TCGdex
+    # cards are refreshed through TCGdex, so the TCGCSV group isn't needed.
+    product = next((p["productId"] for p in tp.values() if isinstance(p, dict) and p.get("productId")), None)
+    if product:
+        out["tcgplayer"] = [0, int(product)]
     cm = (pricing or {}).get("cardmarket") or {}
     eur = {}
     for f in EUR_FIELDS:

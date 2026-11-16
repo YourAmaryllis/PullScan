@@ -1,16 +1,16 @@
-<img src="docs/logo/holoscan-logo.png" alt="HoloScan" width="420">
+<img src="docs/logo/pullscan-logo.png" alt="PullScan" width="420">
 
-# HoloScan
+# PullScan
 
 Identify Pokémon TCG cards with the phone camera, fully on-device, and keep a
 collection with estimated prices. No account, no server, no ads.
 
 [<img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png"
-     alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/YourAmaryllis/HoloScan)
+     alt="Get it on Obtainium" height="80">](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/YourAmaryllis/PullScan)
 
 **Install:** with [Obtainium](https://github.com/ImranR98/Obtainium), which installs the app
 from this repo's releases and keeps it updated, tap the badge above or add
-`https://github.com/YourAmaryllis/HoloScan` in Obtainium. You can also download the APK from
+`https://github.com/YourAmaryllis/PullScan` in Obtainium. You can also download the APK from
 [Releases](../../releases), open it on the phone and allow "install unknown apps".
 Android 8.0+, 64-bit ARM.
 
@@ -27,6 +27,11 @@ Android 8.0+, 64-bit ARM.
   matches (≥ 60%) are added automatically.
 - **Prices:** a TCGplayer (USD) / Cardmarket (EUR) snapshot is built into the app.
   *Refresh prices* updates the cards in your collection, at most 5 times an hour.
+- **Collection:** search by name, set or number; sort by value, name, release or copies;
+  filter by price range, rarity or duplicates. View it as one card list or by set, with
+  how much of each set you own.
+- **Card details:** set facts, live TCGplayer and Cardmarket prices, and links to TCGplayer, Cardmarket, eBay sold
+  listings and the official Pokémon card database.
 - **Backup:** export the collection as a zip of CSV files, then import it on another
   phone or open it in a spreadsheet.
 - Two models: **Fast (int8)**, the default, and **Full (fp32)**, same accuracy in testing.
@@ -34,7 +39,7 @@ Android 8.0+, 64-bit ARM.
 > **Disclaimer:** card identification is done by an AI model and can be wrong,
 > especially between reprints that share the same artwork. Prices are estimates
 > from public market data and may be outdated or inaccurate. Always double-check
-> the card and its value before buying, selling or trading. HoloScan is provided
+> the card and its value before buying, selling or trading. PullScan is provided
 > as is, without warranty, and the authors are not responsible for any loss from
 > relying on its results (see "No Liability" in the [license](LICENSE.md)).
 
@@ -44,6 +49,7 @@ the camera, so check the set and number and pick the exact one with ✕ if neede
 ## Repository
 
 - `android/`: the Android app (Kotlin, Compose, CameraX, ONNX Runtime). See `android/README.md`.
+- `ios/`: the iPhone app (SwiftUI, AVFoundation, Core ML), same features. See `ios/README.md`.
 - `ml/`: the Python pipeline (uv). Card data and images, embedding index, fine-tuning,
   phone exports and the price snapshot.
 - `docs/TRAINING.md`: data collection, training method, hyperparameters, full vs int8 models.
@@ -57,7 +63,8 @@ What's versioned and what's a release asset:
 | Card index (26,675 × 384 float16), card list, price snapshot | `android/app/src/main/assets/` (git) |
 | Card ids, reprint groups, preprocessing contract | `embeddings/` (git) |
 | `embedder.int8.onnx` (22 MB), `embedder.onnx` (87 MB) | release, via `scripts/fetch_models.sh` |
-| `backbone.pt` (PyTorch checkpoint), `embeddings.f32.npy`, `Embedder.mlpackage` (Core ML) | release, via `scripts/fetch_models.sh --all` |
+| `Embedder.mlpackage` (Core ML, iPhone app) | release, via `scripts/fetch_models.sh --ios` |
+| `backbone.pt` (PyTorch checkpoint), `embeddings.f32.npy` | release, via `scripts/fetch_models.sh --all` |
 | Card images | not distributed; `ml/download_images.py` fetches them |
 
 ## Build the app
@@ -73,7 +80,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ```sh
 cd ml
-uv run python download_images.py   # card images -> HOLOSCAN_NAS (default ~/nas/arthur/pokemon-tcg)
+uv run python download_images.py   # card images -> PULLSCAN_NAS (default ~/nas/arthur/pokemon-tcg)
 uv run python build_cache.py       # local 336x462 working copies (cache/train)
 uv run python embed.py             # pretrained index -> embeddings/dinov2-s14-224x308
 uv run python art_groups.py        # same-artwork reprint groups -> embeddings/art_groups.json
@@ -102,8 +109,7 @@ source can be swapped later without touching the UI. Prices are estimates, not o
 
 Contributions are welcome, especially:
 
-- **An iPhone app.** The Core ML model (`Embedder.mlpackage`, in the release) and the
-  shared card index are ready; it needs the camera, lock and collection logic ported.
+- **The iPhone app** (`ios/`): testing on real iPhones, fixes, and keeping it in step with Android.
 - **Models for other trading card games.** The pipeline in `ml/` is game-agnostic:
   card images and metadata in, an embedding index out. Add a data source and a
   config, and the same training and export steps apply.
@@ -114,8 +120,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please open an issue first for anything 
 ## Privacy
 
 No account, analytics or ads. Camera frames are processed on the phone and never
-saved or uploaded. The only network use is *Refresh prices*, which sends card ids
-to the price services. See [PRIVACY.md](PRIVACY.md).
+saved or uploaded. The network is used only for *Refresh prices* and when you open a
+card's details page (its live price); both send just card ids. See
+[PRIVACY.md](PRIVACY.md).
 
 ## License
 
@@ -123,6 +130,6 @@ to the price services. See [PRIVACY.md](PRIVACY.md).
 any noncommercial purpose. Commercial use is not allowed. Third-party credits
 are in [NOTICE.md](NOTICE.md).
 
-HoloScan is an unofficial fan project. It is not affiliated with, endorsed or
+PullScan is an unofficial fan project. It is not affiliated with, endorsed or
 sponsored by Nintendo, Creatures Inc., GAME FREAK inc. or The Pokémon Company.
 Pokémon and card names are trademarks of their respective owners.

@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import java.io.InputStream
 import java.nio.ByteBuffer
@@ -14,7 +14,10 @@ data class Card(
     val rarity: String,
     val released: String,
     val artist: String,
-)
+) {
+    /** "base1" for "base1-4": every card id is "<set id>-<number or product>". */
+    val setId: String get() = id.substringBeforeLast('-')
+}
 
 data class Match(val card: Card, val score: Float)
 

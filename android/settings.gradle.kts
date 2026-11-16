@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HoloScan"
+rootProject.name = "PullScan"
 include(":app")
 include(":models")

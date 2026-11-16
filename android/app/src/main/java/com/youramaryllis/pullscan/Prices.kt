@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import android.content.Context
 import org.json.JSONArray
@@ -15,7 +15,9 @@ data class CardPrice(
     val usd: Map<String, Double>,   // TCGplayer market: "normal", "holofoil", "reverse-holofoil", ...
     val eur: Map<String, Double>,   // Cardmarket: "trend", "avg30", "trend-holo", ...
     val tcgdex: String? = null,                 // TCGdex card id, for a refresh
-    val tcgplayer: Pair<Long, Long>? = null,    // TCGplayer (groupId, productId), for cards TCGdex doesn't price
+    // TCGplayer (groupId, productId): for cards TCGdex doesn't price, and for the product link.
+    // groupId is 0 when the product id came from TCGdex (TCGdex cards don't need the group).
+    val tcgplayer: Pair<Long, Long>? = null,
     val updated: String? = null,                // set when refreshed in the app; else the book's date applies
 ) {
     /** Default estimate when the variant isn't known: the plain printing, else the cheapest listed. */
@@ -147,9 +149,11 @@ class LivePriceSource(private val known: PriceBook, private val now: () -> Strin
     /** Same fields as fetch_prices.compact(): TCGplayer market (else mid) per variant, Cardmarket EUR. */
     private fun compact(pricing: JSONObject): CardPrice {
         val usd = HashMap<String, Double>()
+        var product: Long? = null
         pricing.optJSONObject("tcgplayer")?.let { tp ->
             for (variant in tp.keys()) {
                 val p = tp.optJSONObject(variant) ?: continue
+                p.optLong("productId").takeIf { it > 0 }?.let { product = it }
                 val v = p.optDouble("marketPrice").takeUnless { it.isNaN() || it == 0.0 }
                     ?: p.optDouble("midPrice").takeUnless { it.isNaN() || it == 0.0 } ?: continue
                 usd[variant] = round2(v)
@@ -162,14 +166,14 @@ class LivePriceSource(private val known: PriceBook, private val now: () -> Strin
                 if (!v.isNaN() && v != 0.0) eur[key] = round2(v)
             }
         }
-        return CardPrice(usd, eur)
+        return CardPrice(usd, eur, tcgplayer = product?.let { 0L to it })
     }
 
     private fun getJson(url: String): JSONObject {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.connectTimeout = 15_000
         conn.readTimeout = 30_000
-        conn.setRequestProperty("User-Agent", "HoloScan app (personal project)")
+        conn.setRequestProperty("User-Agent", "PullScan app (personal project)")
         try {
             if (conn.responseCode != 200) throw java.io.IOException("HTTP ${conn.responseCode} for $url")
             return JSONObject(conn.inputStream.bufferedReader().readText())

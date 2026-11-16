@@ -1,0 +1,2 @@
+// Team ID and other machine-specific settings live in Local.xcconfig (git-ignored).
+#include? "Local.xcconfig"

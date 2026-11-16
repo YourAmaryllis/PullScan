@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 /** The card currently held on screen. [score] is from the latest frame, [best] the highest since locking. */
 data class Locked(

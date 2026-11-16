@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment

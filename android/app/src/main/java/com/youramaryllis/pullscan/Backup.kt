@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import java.io.InputStream
 import java.io.OutputStream
@@ -71,7 +71,7 @@ object Backup {
                 listOf(id, n.toString(), c?.name.orEmpty(), c?.set.orEmpty(), c?.number.orEmpty(), c?.rarity.orEmpty())
             }
         val sett = listOf(listOf("key", "value")) + settings.entries.sortedBy { it.key }.map { listOf(it.key, it.value) }
-        val info = listOf(listOf("key", "value"), listOf("app", "HoloScan"), listOf("format", FORMAT),
+        val info = listOf(listOf("key", "value"), listOf("app", "PullScan"), listOf("format", FORMAT),
             listOf("exported_at", exportedAt), listOf("cards", collection.values.sum().toString()))
         ZipOutputStream(out).use { zip ->
             for ((name, rows) in listOf("collection.csv" to coll, "settings.csv" to sett, "info.csv" to info)) {

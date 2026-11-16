@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-# Master copies of card data and images (a NAS mount here); override with HOLOSCAN_NAS.
-NAS_ROOT = Path(os.environ.get("HOLOSCAN_NAS", Path.home() / "nas/arthur/pokemon-tcg"))
+# Master copies of card data and images (a NAS mount here); override with PULLSCAN_NAS.
+NAS_ROOT = Path(os.environ.get("PULLSCAN_NAS", Path.home() / "nas/arthur/pokemon-tcg"))
 NAS_DATA_DIR = NAS_ROOT / "data"  # PokemonTCG/pokemon-tcg-data checkout
 IMAGES_DIR = NAS_ROOT / "images"  # images/<set_id>/<card_id>.<ext>, full-res originals
 

@@ -9,29 +9,30 @@ kotlin {
 }
 
 android {
-    namespace = "com.youramaryllis.holoscan"
+    namespace = "com.youramaryllis.pullscan"
     compileSdk = 36
 
     defaultConfig {
+        // Kept from the app's first name (HoloScan): the Play listing is locked to this id.
         applicationId = "com.youramaryllis.holoscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.0"
+        versionCode = 4
+        versionName = "1.0.1"
         // 64-bit ARM covers current phones and the emulator on Apple silicon;
         // each extra ABI adds ~35 MB of ONNX Runtime.
         ndk { abiFilters += listOf("arm64-v8a") }
     }
 
     // Release signing comes from Gradle properties supplied at build time
-    // (holoscanUploadStoreFile, holoscanUploadStorePassword, optional
-    // holoscanUploadKeyAlias). Without them, release builds are debug-signed.
-    val uploadStore = providers.gradleProperty("holoscanUploadStoreFile").orNull
+    // (pullscanUploadStoreFile, pullscanUploadStorePassword, optional
+    // pullscanUploadKeyAlias). Without them, release builds are debug-signed.
+    val uploadStore = providers.gradleProperty("pullscanUploadStoreFile").orNull
     signingConfigs {
         if (uploadStore != null) create("upload") {
             storeFile = file(uploadStore)
-            storePassword = providers.gradleProperty("holoscanUploadStorePassword").get()
-            keyAlias = providers.gradleProperty("holoscanUploadKeyAlias").orElse("upload").get()
+            storePassword = providers.gradleProperty("pullscanUploadStorePassword").get()
+            keyAlias = providers.gradleProperty("pullscanUploadKeyAlias").orElse("upload").get()
             keyPassword = storePassword
         }
     }

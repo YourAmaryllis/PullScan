@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="1024" height="1024">
-  <!-- HoloScan app icon. Original artwork: a blank foil card, viewfinder corners, scan line.
+  <!-- PullScan app icon. Original artwork: a blank foil card, viewfinder corners, scan line.
        Same 108-unit grid as the Android adaptive icon (artwork inside the 66-unit safe zone). -->
   <defs>
     <radialGradient id="bg" cx="50%" cy="40%" r="75%">

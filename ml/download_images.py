@@ -20,7 +20,7 @@ WORKERS = 8
 # when the laptop disk gets low so the cache can drain instead of filling it.
 MIN_FREE_BYTES = 5 * 1024**3
 session = requests.Session()
-session.headers["User-Agent"] = "HoloScan/0.1 (personal research)"
+session.headers["User-Agent"] = "PullScan/0.1 (personal research)"
 
 
 def load_cards():

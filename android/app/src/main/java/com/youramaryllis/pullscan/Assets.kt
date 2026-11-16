@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import android.content.Context
 import org.json.JSONArray
@@ -99,6 +99,16 @@ class Settings(context: Context) {
     var priceRefreshes: List<Long>
         get() = prefs.getString("priceRefreshes", "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
         set(value) = prefs.edit().putString("priceRefreshes", value.joinToString(",")).apply()
+
+    // Collection screen: grouped by set or one list, and the sort order (a CollectionSort name).
+    var collectionBySet: Boolean
+        get() = prefs.getBoolean("collectionBySet", false)
+        set(value) = prefs.edit().putBoolean("collectionBySet", value).apply()
+
+    var collectionSort: CollectionSort
+        get() = CollectionSort.entries.firstOrNull { it.name == prefs.getString("collectionSort", null) }
+            ?: CollectionSort.RELEASE_OLD
+        set(value) = prefs.edit().putString("collectionSort", value.name).apply()
 
     /** The user-facing settings, for a backup. */
     fun export(): Map<String, String> = mapOf(

@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

@@ -19,3 +19,6 @@ embeddings/dinov2-s14-224x308-ft/*
 
 # Working log with local machine / storage notes
 docs/PROGRESS.md
+
+# Launch video renders (brag)
+brag-output/

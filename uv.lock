@@ -360,8 +360,8 @@ wheels = [
 ]
 
 [[package]]
-name = "holoscan"
-version = "0.1.0"
+name = "pullscan"
+version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "coremltools" },
