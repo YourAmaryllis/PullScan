@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import kotlin.math.abs
 import kotlin.math.max

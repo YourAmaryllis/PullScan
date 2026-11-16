@@ -1,14 +1,14 @@
-# HoloScan for Android
+# PullScan for Android
 
 Camera card identification, fully on-device: the model, the 26k-card index and
 the card info are bundled in the APK. No account needed; the network is used
-only by *Refresh prices*.
+only by *Refresh prices* and the card details page (live price).
 
 ## Install on a phone
 
 1. On the phone: Settings → About phone → tap *Build number* 7× → Developer
    options → enable *USB debugging*.
-2. Plug it in, then from `HoloScan/android`:
+2. Plug it in, then from `PullScan/android`:
 
    ```sh
    adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -28,8 +28,15 @@ only by *Refresh prices*.
   the other candidates. Tap the right printing, or Cancel to return to auto-detect.
 - **Auto-add** (Settings: off, 1, 2, 3 or 5 s; default 2 s) adds a green match
   after it's held that long. A green "✓ Card added" banner and frame confirm it.
-- **Collection** lists saved cards with +/- counts, prices and an estimated total.
-  *Refresh prices* updates them (5 per hour, 5 min apart).
+- **Collection** lists saved cards with prices and an estimated total, either as one
+  list (**Cards**) or grouped by set (**Sets**, with "owned / in set" and value; tap a
+  set for its cards). Search by name, set or #number; **Sort** (value, name, release,
+  copies / completion) and **Filter** (price per card, rarity, duplicates only) open
+  bottom sheets, and active filters show as removable chips. The view and sort are
+  remembered. *Refresh prices* updates them (5 per hour, 5 min apart).
+- **Card details** (tap a card): set facts, +/- copies, prices per site with a live
+  refresh of that one card (at most every 10 min per card), and links to TCGplayer,
+  Cardmarket, eBay sold listings and the pokemon.com card database.
 - **Settings:** model (Fast int8 / Full fp32), auto-add delay, button side, and
   Export / Import / Reset of the collection (zip of CSV files).
 - Same-art reprints (Base Set vs Base Set 2, stamped promos, ...) look identical
@@ -45,8 +52,8 @@ only by *Refresh prices*.
 
 Play release: `./gradlew :app:bundleRelease` builds an app bundle with the models in the
 install-time asset pack `:models` (about 43 MB base download). It's signed with the
-upload key given by the Gradle properties `holoscanUploadStoreFile` and
-`holoscanUploadStorePassword` (alias `upload`, or `holoscanUploadKeyAlias`);
+upload key given by the Gradle properties `pullscanUploadStoreFile` and
+`pullscanUploadStorePassword` (alias `upload`, or `pullscanUploadKeyAlias`);
 without them it's debug-signed.
 
 To rebuild the assets from the pipeline instead:

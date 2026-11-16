@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 108" width="1260" height="324">
-  <!-- HoloScan wordmark: the icon artwork plus the name. Original artwork, no third-party marks. -->
+  <!-- PullScan wordmark: the icon artwork plus the name. Original artwork, no third-party marks. -->
   <defs>
     <linearGradient id="foil" x1="40" y1="34" x2="68" y2="74" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#5EE7DF"/><stop offset="0.35" stop-color="#8C7CF0"/>
@@ -29,6 +29,6 @@
     <path d="M33 52 H75" stroke="#B9FFF9" stroke-width="1.6" stroke-linecap="round"/>
   </g>
   <text x="100" y="68" font-family="Avenir Next, Helvetica Neue, Arial, sans-serif" font-weight="700" font-size="46" letter-spacing="0.5">
-    <tspan fill="url(#word)">Holo</tspan><tspan fill="#FFFFFF">Scan</tspan>
+    <tspan fill="url(#word)">Pull</tspan><tspan fill="#FFFFFF">Scan</tspan>
   </text>
 </svg>

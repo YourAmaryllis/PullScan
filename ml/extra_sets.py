@@ -69,7 +69,7 @@ TIER1_NEW_GROUPS = {24451, 24461}           # Mega Evolution promos, Mega Evolut
 TIER3_GROUPS = {2282, 1528, 2374}           # World Championship Decks, Jumbo, Miscellaneous
 
 session = requests.Session()
-session.headers["User-Agent"] = "HoloScan/0.1 (personal research)"
+session.headers["User-Agent"] = "PullScan/0.1 (personal research)"
 
 
 def get(url, tries=4):

@@ -1,4 +1,4 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import android.graphics.Bitmap
 import android.graphics.Matrix

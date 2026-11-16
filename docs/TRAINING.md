@@ -1,4 +1,4 @@
-# HoloScan: data, training and models
+# PullScan: data, training and models
 
 How the card-recognition model was built: where the data comes from, how it's
 prepared, how the model is trained, every hyperparameter, and how the phone

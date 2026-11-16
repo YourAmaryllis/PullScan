@@ -1,6 +1,8 @@
-package com.youramaryllis.holoscan
+package com.youramaryllis.pullscan
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
@@ -41,6 +43,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -102,6 +106,7 @@ class MainActivity : ComponentActivity() {
     private val embedder = AtomicReference<Embedder>()
     private val settings by lazy { Settings(this) }
     private var prices by mutableStateOf(PriceBook("", "", emptyMap()))
+    private val liveFetched = HashMap<String, Long>()   // card id -> elapsedRealtime of its last live price
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -150,7 +155,7 @@ class MainActivity : ComponentActivity() {
         }
 
         when {
-            !granted -> Message("HoloScan needs the camera to identify cards.") {
+            !granted -> Message("PullScan needs the camera to identify cards.") {
                 Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
             }
             loadError != null -> Message("Could not load the card model:\n$loadError")
@@ -295,7 +300,7 @@ class MainActivity : ComponentActivity() {
                 "the collection is only on this phone (Refresh prices sends just the card ids to the price sites).")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
                 OutlinedButton(onClick = {
-                    exporter.launch("holoscan-backup-${LocalDate.now()}.zip")
+                    exporter.launch("pullscan-backup-${LocalDate.now()}.zip")
                 }) { Text("Export") }
                 OutlinedButton(onClick = {
                     importer.launch(arrayOf("application/zip", "text/csv", "text/comma-separated-values", "*/*"))
@@ -308,7 +313,7 @@ class MainActivity : ComponentActivity() {
             Spacer(Modifier.height(20.dp))
             Heading("About")
             val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
-            Note("HoloScan ${version.orEmpty()} · github.com/YourAmaryllis/HoloScan\n" +
+            Note("PullScan ${version.orEmpty()} · github.com/YourAmaryllis/PullScan\n" +
                 "Free for noncommercial use (PolyForm Noncommercial 1.0.0).")
             Spacer(Modifier.height(8.dp))
             Note(DISCLAIMER)
@@ -367,7 +372,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun exportTo(uri: Uri, collection: Map<String, Int>, byId: Map<String, Card>) {
-        val stamp = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'"))
+        val stamp = stamp()
         ioExecutor.execute {
             val result = runCatching {
                 contentResolver.openOutputStream(uri)!!.use { Backup.export(it, collection, byId, settings.export(), stamp) }
@@ -485,7 +490,7 @@ class MainActivity : ComponentActivity() {
             val r = result
             Column(Modifier.fillMaxWidth().align(Alignment.TopCenter).statusBarsPadding().padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("HoloScan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text("PullScan", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onOpenCollection) { Text("Collection ($collectionCount)") }
                     TextButton(onClick = onOpenSettings) { Text("Settings") }
@@ -626,7 +631,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** One logcat line per lock change, so a phone test can be read back with `adb logcat -s HoloScan`. */
+    /** One logcat line per lock change, so a phone test can be read back with `adb logcat -s PullScan`. */
     private fun logLock(before: Locked?, after: Locked?, r: ScanResult, autoAdd: Boolean) {
         val top = r.matches.first()
         when {
@@ -682,22 +687,47 @@ class MainActivity : ComponentActivity() {
         onChange: (String, Int) -> Unit,
         onClose: () -> Unit,
     ) {
-        val rows = collection.entries.mapNotNull { (id, n) -> byId[id]?.let { it to n } }
-            .sortedWith(compareBy({ it.first.released }, { it.first.set }, { it.first.number.padStart(4, '0') }))
+        val setSizes = remember(byId) { CollectionQuery.setSizes(byId.values) }
+        var bySet by remember { mutableStateOf(settings.collectionBySet) }
+        var sort by remember { mutableStateOf(settings.collectionSort) }
+        var filter by remember { mutableStateOf(CollectionFilter()) }
+        var openSet by remember { mutableStateOf<String?>(null) }
+        var openCard by remember { mutableStateOf<String?>(null) }
+        var sheet by remember { mutableStateOf<String?>(null) }   // "sort" or "filter"
+        // Hoisted so each list keeps its scroll position while a set or card is open.
+        val setsList = rememberLazyListState()
+        val cardsList = rememberLazyListState()
+        val setCardsList = remember(openSet) { LazyListState() }
         var refreshing by remember { mutableStateOf(false) }
         var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
         LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
         val history = settings.priceRefreshes
         val wait = RefreshLimit.waitMs(history, now)
+        BackHandler(enabled = openCard != null || openSet != null) {
+            if (openCard != null) openCard = null else openSet = null
+        }
 
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        val owned = CollectionQuery.owned(collection, byId) { prices[it]?.usdEstimate }
+        val scope = openSet?.let { s -> owned.filter { it.card.setId == s } } ?: owned
+        val cards = CollectionQuery.cards(scope, filter, sort)
+
+        val card = openCard?.let { byId[it] }
+        if (card != null) {
+            var live by remember(card.id) { mutableStateOf(LivePrice.LOADING) }
+            LaunchedEffect(card.id) { fetchCardPrice(card.id) { live = it } }
+            Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 16.dp)) {
+                CardDetails(card, collection[card.id] ?: 0, prices[card.id], prices.updated, live,
+                    onChange = { onChange(card.id, it) }, onOpen = ::openUrl, onBack = { openCard = null })
+            }
+            return
+        }
+
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                 Column(Modifier.weight(1f)) {
-                    Text("Collection · ${collection.values.sum()} cards", color = Color.White,
-                        fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    val total = collection.entries.sumOf { (id, n) -> (prices[id]?.usdEstimate ?: 0.0) * n }
-                    Note("≈ ${usd(total)} estimated${priceDate()}")
-                    Note("Estimates only: check current prices before buying, selling or trading.")
+                    Text("Collection", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    val total = owned.sumOf { it.value }
+                    Note("${collection.values.sum()} cards · ≈ ${usd(total)} estimated${priceDate()}")
                 }
                 TextButton(onClick = onClose) { Text("Scan") }
             }
@@ -718,39 +748,69 @@ class MainActivity : ComponentActivity() {
                     else -> "${RefreshLimit.left(history, now)} of ${RefreshLimit.PER_HOUR} left this hour"
                 })
             }
+            Note("Estimates only: check current prices before buying, selling or trading.")
             Spacer(Modifier.height(8.dp))
-            if (rows.isEmpty()) Text("Nothing yet — scan a card and tap ✓.", color = Color.White.copy(alpha = 0.7f))
-            LazyColumn {
-                items(rows, key = { it.first.id }) { (c, n) ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(c.name, color = Color.White, fontSize = 16.sp)
-                            Note("${c.set} #${c.number} · ${c.rarity}")
-                        }
-                        prices[c.id]?.usdEstimate?.let {
-                            Text(usd(it * n), color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-                        }
-                        TextButton(onClick = { onChange(c.id, -1) }) { Text("−") }
-                        Text("$n", color = Color.White)
-                        TextButton(onClick = { onChange(c.id, 1) }) { Text("+") }
+
+            if (owned.isEmpty()) {
+                Text("Nothing yet — scan a card and tap ✓.", color = Color.White.copy(alpha = 0.7f))
+                return@Column
+            }
+            SearchField(filter.text) { filter = filter.copy(text = it) }
+            val group = openSet?.let { s -> CollectionQuery.sets(scope, setSizes, CollectionFilter(), sort).firstOrNull { it.setId == s } }
+            if (group != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    TextButton(onClick = { openSet = null }) { Text("‹ Sets") }
+                    Column(Modifier.weight(1f)) {
+                        Text(group.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Note("${group.cards.size} of ${group.inDatabase} cards · ${group.copies} copies · ≈ ${usd(group.value)}")
                     }
                 }
             }
+            CollectionToolbar(bySet = if (openSet == null) bySet else null,
+                onBySet = { bySet = it; settings.collectionBySet = it },
+                filterCount = filter.active, onSort = { sheet = "sort" }, onFilter = { sheet = "filter" })
+            ActiveFilters(filter) { filter = it }
+
+            val sets = if (bySet && openSet == null) CollectionQuery.sets(owned, setSizes, filter, sort) else null
+            val filtered = filter.active > 0 || filter.text.isNotBlank()
+            if (filtered) Note(if (sets != null) "${sets.size} sets with ${cards.size} matching cards"
+                else "${cards.size} of ${scope.size} cards match")
+            if (cards.isEmpty()) {
+                Text("No cards match.", color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(top = 12.dp))
+                TextButton(onClick = { filter = CollectionFilter() }) { Text("Clear search and filters") }
+            } else if (sets != null) {
+                LazyColumn(state = setsList) {
+                    items(sets, key = { it.setId }) { g -> SetRow(g) { openSet = g.setId } }
+                }
+            } else {
+                LazyColumn(state = if (openSet != null) setCardsList else cardsList) {
+                    items(cards, key = { it.card.id }) { o -> CardRow(o, showSet = openSet == null) { openCard = o.card.id } }
+                }
+            }
+        }
+
+        when (sheet) {
+            "sort" -> SortSheet(sort, bySet && openSet == null,
+                onSort = { sort = it; settings.collectionSort = it }, onDismiss = { sheet = null })
+            "filter" -> FilterSheet(filter,
+                rarities = scope.map { it.card.rarity.ifEmpty { CollectionFilter.NO_RARITY } }.distinct().sorted(),
+                matches = cards.size, onFilter = { filter = it }, onDismiss = { sheet = null })
+        }
+    }
+
+    private fun openUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: ActivityNotFoundException) {
+            toast("No browser to open $url")
         }
     }
 
     /** Fetches fresh prices for the given cards, lays them over the snapshot and keeps them for next start. */
     private fun refreshPrices(ids: Collection<String>, done: () -> Unit) {
         val known = prices
-        val stamp = { ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'")) }
         ioExecutor.execute {
-            val result = runCatching {
-                val fresh = PriceSources.live(known, stamp).load(ids)
-                val store = RefreshedPrices(this)
-                store.save((store.load() ?: PriceBook(fresh.updated, fresh.source, emptyMap())).overlay(fresh)
-                    .copy(updated = fresh.updated))
-                fresh
-            }
+            val result = runCatching { PriceSources.live(known, ::stamp).load(ids).also(::keepRefreshed) }
             runOnUiThread {
                 result.onSuccess { fresh ->
                     prices = prices.overlay(fresh)
@@ -765,6 +825,41 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Live price of one card for its details page (one TCGdex or TCGCSV request). Not counted in
+     * [RefreshLimit]; the same card is fetched at most once per [LIVE_TTL_MS] instead.
+     */
+    private fun fetchCardPrice(id: String, done: (LivePrice) -> Unit) {
+        val known = prices
+        if (known[id]?.let { it.tcgdex != null || it.tcgplayer?.first?.let { g -> g > 0 } == true } != true) {
+            done(LivePrice.NO_SOURCE); return
+        }
+        val last = liveFetched[id]
+        if (last != null && SystemClock.elapsedRealtime() - last < LIVE_TTL_MS) { done(LivePrice.LIVE); return }
+        ioExecutor.execute {
+            val fresh = runCatching { PriceSources.live(known, ::stamp).load(listOf(id)) }.getOrNull()
+                ?.takeIf { id in it.cards }
+            fresh?.let { runCatching { keepRefreshed(it) } }
+            runOnUiThread {
+                if (fresh != null) {
+                    prices = prices.overlay(fresh)
+                    liveFetched[id] = SystemClock.elapsedRealtime()
+                    Log.i(TAG, "live price $id")
+                }
+                done(if (fresh != null) LivePrice.LIVE else LivePrice.UNAVAILABLE)
+            }
+        }
+    }
+
+    /** Lays [fresh] over the stored refreshed prices, so they're used again on the next start. Blocking. */
+    private fun keepRefreshed(fresh: PriceBook) {
+        val store = RefreshedPrices(this)
+        store.save((store.load() ?: PriceBook(fresh.updated, fresh.source, emptyMap())).overlay(fresh)
+            .copy(updated = fresh.updated))
+    }
+
+    private fun stamp() = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'"))
+
     @Composable
     private fun Message(text: String, action: @Composable () -> Unit = {}) {
         Column(Modifier.fillMaxSize().padding(32.dp), verticalArrangement = Arrangement.Center,
@@ -774,12 +869,6 @@ class MainActivity : ComponentActivity() {
             action()
         }
     }
-
-    @Composable
-    private fun Heading(text: String) = Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-
-    @Composable
-    private fun Note(text: String) = Text(text, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
 
     @Composable
     private fun Choice(label: String, selected: Boolean, onClick: () -> Unit) {
@@ -793,8 +882,6 @@ class MainActivity : ComponentActivity() {
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
     private fun pct(score: Float) = "${(score * 100).toInt()}%"
-
-    private fun usd(v: Double) = if (v < 100) "$%.2f".format(v) else "$%,.0f".format(v)
 
     private fun priceDate() = prices.updated.take(10).let { if (it.isEmpty()) "" else " · prices $it" }
 
@@ -815,14 +902,15 @@ class MainActivity : ComponentActivity() {
         val GREEN = Color(0xFF8BD17C)
         val AMBER = Color(0xFFE0B050)
         val RED = Color(0xFFE57373)
-        const val TAG = "HoloScan"
+        const val TAG = "PullScan"
         const val DISCLAIMER_VERSION = 1
+        const val LIVE_TTL_MS = 10 * 60_000L
         const val DISCLAIMER =
             "Card identification is done by an AI model and can be wrong, especially between reprints " +
             "that share the same artwork. Prices are estimates from public market data (TCGplayer, " +
             "Cardmarket) and may be outdated or inaccurate. Always double-check the card and its value " +
             "before buying, selling or trading.\n\n" +
-            "HoloScan is provided as is, without warranty. The authors are not responsible for any loss " +
+            "PullScan is provided as is, without warranty. The authors are not responsible for any loss " +
             "from relying on its results.\n\n" +
             "Unofficial fan project, not affiliated with Nintendo, Creatures, GAME FREAK or The Pokémon Company."
     }

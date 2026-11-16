@@ -18,7 +18,7 @@ from embed import BACKGROUND
 CACHE_W, CACHE_H = 336, 462
 WORKERS = 12
 session = requests.Session()
-session.headers["User-Agent"] = "HoloScan/0.1 (personal research)"
+session.headers["User-Agent"] = "PullScan/0.1 (personal research)"
 
 
 def fill_alpha(img):
