@@ -13,10 +13,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.youramaryllis.pullscan"
+        // Kept from the app's first name (HoloScan): the Play listing is locked to this id.
+        applicationId = "com.youramaryllis.holoscan"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = "1.0.1"
         // 64-bit ARM covers current phones and the emulator on Apple silicon;
         // each extra ABI adds ~35 MB of ONNX Runtime.
