@@ -1,0 +1,49 @@
+# Generate PullScan.xcodeproj with `xcodegen` (brew install xcodegen) from this folder.
+name: PullScan
+options:
+  bundleIdPrefix: com.youramaryllis
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  PullScanCore:
+    path: PullScanCore
+configFiles:
+  Debug: Shared.xcconfig
+  Release: Shared.xcconfig
+targets:
+  PullScan:
+    type: application
+    platform: iOS
+    sources:
+      - path: PullScan
+      # Card list, index, prices: shared with the Android app, not copied.
+      - path: ../android/app/src/main/assets/cards.json
+        buildPhase: resources
+      - path: ../android/app/src/main/assets/index.f16
+        buildPhase: resources
+      - path: ../android/app/src/main/assets/model.json
+        buildPhase: resources
+      - path: ../android/app/src/main/assets/prices.json
+        buildPhase: resources
+    dependencies:
+      - package: PullScanCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.youramaryllis.pullscan
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The model is loaded by name through PullScanCore.Embedder; no generated class.
+        COREML_CODEGEN_LANGUAGE: None
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: PullScan
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_NSCameraUsageDescription: PullScan uses the camera to identify the card you hold in the frame. Frames are processed on the phone and never saved or uploaded.
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleLightContent
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
